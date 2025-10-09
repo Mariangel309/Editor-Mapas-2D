@@ -1,0 +1,7 @@
+Funcionalidades:
+- Serialización completa a JSON
+- Deserialización con validación robusta
+- Exportación para motor de juego
+- Manejo de errores con archivos corruptos
+- Exportar PNG del mapa completo (BONO)
+- Versionado de formato

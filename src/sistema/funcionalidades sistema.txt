@@ -1,0 +1,5 @@
+- Sistema completo de Undo/Redo
+- Integración de todos los módulos
+- Testing y debugging
+- Modo juego para caminar en el mapa (BONO)
+- Coordinación general

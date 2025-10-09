@@ -1,0 +1,4 @@
+Diferentes tests para:
+- Testear el modelo
+- Testear herramientas
+- Testear guardado/carga

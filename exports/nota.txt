@@ -1,0 +1,1 @@
+En esta carpeta se exportaran los formatos de mapa para motor de juego y también las respectivas imágenes PNG del mapa
