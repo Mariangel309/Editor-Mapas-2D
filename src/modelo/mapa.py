@@ -106,3 +106,118 @@ class Tile:
             tiene_colision=self.tiene_colision,
             animado=self.animado
         )
+        tile_nuevo = Tile(
+            tipo=self.tipo,
+            color=self.color,
+            sprite=self.sprite,
+            tiene_colision=self.tiene_colision,
+            animado=self.animado
+        )
+        tile_nuevo.frames = self.frames.copy()
+        tile_nuevo.propiedades = copy.deepcopy(self.propiedades)
+        return tile_nuevo
+    
+    def __repr__(self) -> str:
+        sprite_str = "🖼️" if self.tiene_sprite() else "🎨"
+        colision_str = "🚫" if self.tiene_colision else "✅"
+        return f"Tile({self.tipo} {sprite_str} {colision_str})"
+
+    def __eq__(self, otro: object) -> bool:
+        if not isinstance(otro, Tile):
+            return False
+        return (
+            self.tipo == otro.tipo and
+            self.color == otro.color and
+            self.tiene_colision == otro.tiene_colision
+        )
+    
+
+class Mapa:
+    #Representa el mapa completo del editor, aqui voy a a hacer uso de una matriz bidimensional ya q como el mapa esta coompuesto por multiples capas, cada una se implementa como una matriz
+    def __init__(self, ancho: int, alto: int, tamaño_tile: int = 32):
+        #inicializar un nuevo mapa
+        if ancho <= 0 or alto <= 0:
+            raise ValueError(f"Dimensiones inválidas: {ancho}x{alto}")
+        if tamaño_tile <= 0:
+            raise ValueError(f"Tamaño de tile inválido: {tamaño_tile}")
+        
+        self.ancho = ancho
+        self.alto = alto
+        self.tamaño_tile = tamaño_tile
+
+        #creacion de capas del mapa
+        self.capas = {
+            'fondo': [[None for _ in range(ancho)] for _ in range(alto)],
+            'decoracion': [[None for _ in range(ancho)] for _ in range(alto)],
+            'objetos': [[None for _ in range(ancho)] for _ in range(alto)],
+            'colision': [[False for _ in range(ancho)] for _ in range(alto)]
+        }
+
+        self.capa_activa = 'fondo'
+        self.spawn_points = []
+        
+        #metadata del mapa
+        self.metadata = {
+            'nombre': 'Sin nombre',
+            'autor': '',
+            'version': '1.0',
+            'descripcion': '',
+            'ruta_assets': 'assets/'
+        }
+
+    def colocar_tile(
+            self,
+            x: int,
+            y: int,
+            tile: Optional[Tile],
+            capa: Optional[str] = None
+    ) -> None:
+        #coloca el tile en la posicion q se quiera
+        if not self._validar_coordenadas(x, y):
+            raise ValueError(f"Coordenadas fuera del mapa: ({x}, {y})")
+        
+        capa = capa or self.capa_activa
+        
+        if capa not in self.capas:
+            raise ValueError(f"Capa inválida: {capa}")
+        
+        if capa == 'colision':
+            self.capas[capa][y][x] = bool(tile) if tile is not None else False
+        else:
+            self.capas[capa][y][x] = tile
+    
+    def obtener_tile(self, x: int, y: int, capa: str) -> Optional[Tile]:
+        #obtiene el tile en la pos especificada
+        if not self._validar_coordenadas(x, y):
+            return None
+        
+        if capa not in self.capas:
+            return None
+        
+        return self.capas[capa][y][x]
+    
+    def _validar_coordenadas(self, x: int, y: int) -> bool:
+        #verificacion si las coordenadas estan dentro del mapa
+        return 0 <= x <= self.ancho and 0 <= y <= self.alto
+    
+    def agregar_spawn_point(
+        self, 
+        x: int, 
+        y: int, 
+        tipo: str = 'jugador',
+        nombre: Optional[str] = None
+    ) -> bool:
+        if not self._validar_coordenadas(x, y):
+            return False
+        
+        spawn = {
+            'x': x,
+            'y': y,
+            'tipo': tipo,
+            'nombre': nombre or f"{tipo}_{len(self.spawn_points)}"
+        }
+
+        self.spawn_points.append(spawn)
+        return True
+
+        
