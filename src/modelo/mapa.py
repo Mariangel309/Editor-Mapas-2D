@@ -220,4 +220,72 @@ class Mapa:
         self.spawn_points.append(spawn)
         return True
 
+    def eliminar_spawn_point(self, x: int, y: int) -> bool:
+        #elimina spawn point de acuerdo a las coordenadas dadas
+        inicial = len(self.spawn_points) 
+        self.spawn_points = [
+            sp for sp in self.spawn_points
+            if not (sp['x'] == x and sp['y'] == y)
+        ]
+        return len(self.spawn_points) < inicial
+    
+    def limpiar_capa(self, nombre_capa: str) -> bool:
+        #limpia toda una capa completa
+        if nombre_capa not in self.capas:
+            return False
         
+        if nombre_capa == 'colision':
+            self.capas[nombre_capa] = [
+                [False for _ in range(self.ancho)]
+                for _ in range(self.alto)
+            ]
+        else:
+            self.capas[nombre_capa] = [
+                [None for _ in range(self.ancho)]
+                for _ in range(self.alto)
+            ]
+        return True
+    
+    def cambiar_capa_activa(self, nombre_capa: str) -> bool:
+        #aca se cambia la capa activa del mapa
+        if nombre_capa not in self.capas:
+            return False
+        self.capa_activa = nombre_capa
+        return True
+    
+    def obtener_estadisticas(self) -> Dict[str, Any]:
+        #adicional .
+        stats = {
+            'dimensiones': f"{self.ancho}x{self.alto}",
+            'tiles_totales': self.ancho * self.alto,
+            'tamaño_tile': self.tamaño_tile,
+            'spawn_points': len(self.spawn_points),
+            'capas': len(self.capas)
+        }
+
+        #conteo de tiles por capa
+        for nombre_capa, matriz in self.capas.items():
+            if nombre_capa == 'colision':
+                count = sum(1 for fila in matriz for col in fila if col)
+                stats['tiles_colision'] = count
+            else:
+                count = sum(1 for fila in matriz for tile in fila if tile is not None)
+                stats[f'tiles_{nombre_capa}'] = count
+        return stats
+    
+    def clonar(self) -> 'Mapa':
+        #copia mapa
+        nuevo_mapa = Mapa(self.ancho, self.alto, self.tamaño_tile)
+        nuevo_mapa.capas = copy.deepcopy(self.capas)
+        nuevo_mapa.spawn_points = copy.deepcopy(self.spawn_points)
+        nuevo_mapa.metadata = self.metadata.copy()
+        nuevo_mapa.capa_activa = self.capa_activa
+        return nuevo_mapa
+    
+    def __repr__(self) -> str:
+        return f"Mapa '{self.metadata['nombre']}': {self.ancho}x{self.alto}"
+    
+    def __str__(self) -> str:
+        return f"Mapa '{self.metadata['nombre']}': {self.ancho}x{self.alto}"
+    
+
