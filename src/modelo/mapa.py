@@ -288,4 +288,82 @@ class Mapa:
     def __str__(self) -> str:
         return f"Mapa '{self.metadata['nombre']}': {self.ancho}x{self.alto}"
     
+#CONFIGURACION DE TILES
 
+TILES_CONFIG = {
+    'pasto': {
+        'nombre': 'Pasto',
+        'sprite': 'assets/tiles/grass.png',
+        'color': '#7CFC00',
+        'colision': False,
+        'descripcion': 'Pasto verde básico'
+    },
+    'tierra': {
+        'nombre': 'Tierra',
+        'sprite': 'assets/tiles/dirt.png',
+        'color': '#8B4513',
+        'colision': False,
+        'descripcion': 'Tierra marrón'
+    },
+    'agua': {
+        'nombre': 'Agua',
+        'sprite': 'assets/tiles/water.png',
+        'color': '#1E90FF',
+        'colision': True,
+        'descripcion': 'Agua azul (bloq uea paso)'
+    },
+    'piedra': {
+        'nombre': 'Piedra',
+        'sprite': 'assets/tiles/stone.png',
+        'color': '#696969',
+        'colision': True,
+        'descripcion': 'Piedra gris sólida'
+    },
+    'arena': {
+        'nombre': 'Arena',
+        'sprite': 'assets/tiles/sand.png',
+        'color': '#F4A460',
+        'colision': False,
+        'descripcion': 'Arena de playa'
+    },
+    'nieve': {
+        'nombre': 'Nieve',
+        'sprite': 'assets/tiles/snow.png',
+        'color': '#FFFAFA',
+        'colision': False,
+        'descripcion': 'Nieve blanca'
+    },
+    'lava': {
+        'nombre': 'Lava',
+        'sprite': 'assets/tiles/lava.png',
+        'color': '#FF4500',
+        'colision': True,
+        'descripcion': 'Lava ardiente (daña)'
+    },
+    'camino': {
+        'nombre': 'Camino',
+        'sprite': 'assets/tiles/path.png',
+        'color': '#D2B48C',
+        'colision': False,
+        'descripcion': 'Camino de tierra'
+    },
+}
+
+def crear_tile_desde_config(tipo: str) -> Tile:
+    #crear un tile desde la config predefinida
+    if tipo not in TILES_CONFIG:
+        return Tile(tipo)
+    
+    config = TILES_CONFIG[tipo]
+
+    #se verififca si el sprite existe
+    sprite_path = config['sprite']
+    if not os.path.exists(sprite_path):
+        sprite_path = None
+    
+    return Tile(
+        tipo=tipo
+        color=config['color'],
+        sprite=sprite_path,
+        tiene_colision=config.get('colision', False)
+    )
