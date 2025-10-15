@@ -8,7 +8,7 @@ COLUMNAS = (ANCHO - 230) // TAM_CELDA
 FILAS = ALTO // TAM_CELDA
 
 ventana = pygame.display.set_mode((ANCHO, ALTO))
-pygame.display.set_caption(" Editor de Mapas - Herramientas Gaby 💖")
+pygame.display.set_caption(" Editor de Mapas Herramientas")
 
 
 LILA = (220, 200, 255)
