@@ -1,5 +1,4 @@
 import pygame
-
 pygame.init()
 
 ANCHO, ALTO = 950, 600
