@@ -13,7 +13,7 @@ COLOR_SELECCION = (180, 150, 255)
 ventana = pygame.display.set_mode((ANCHO, ALTO))
 pygame.display.set_caption("Panel de Herramientas")
 
-FUENTE = pygame.font.SysFont("Comic Sans MS", 18, bold=True)
+FUENTE = pygame.font.SysFont("Sangria", 18, bold=True)
 TAM_CELDA = 24
 FILAS = ALTO // TAM_CELDA
 COLUMNAS = (ANCHO - PANEL_W) // TAM_CELDA
