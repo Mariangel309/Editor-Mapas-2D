@@ -134,16 +134,16 @@ class Tile:
 
 class Mapa:
     #Representa el mapa completo del editor, aqui voy a a hacer uso de una matriz bidimensional ya q como el mapa esta coompuesto por multiples capas, cada una se implementa como una matriz
-    def __init__(self, ancho: int, alto: int, tamaño_tile: int = 32):
+    def __init__(self, ancho: int, alto: int, tamano_tile: int = 32):
         #inicializar un nuevo mapa
         if ancho <= 0 or alto <= 0:
             raise ValueError(f"Dimensiones inválidas: {ancho}x{alto}")
-        if tamaño_tile <= 0:
-            raise ValueError(f"Tamaño de tile inválido: {tamaño_tile}")
+        if tamano_tile <= 0:
+            raise ValueError(f"Tamaño de tile inválido: {tamano_tile}")
         
         self.ancho = ancho
         self.alto = alto
-        self.tamaño_tile = tamaño_tile
+        self.tamano_tile = tamano_tile
 
         #creacion de capas del mapa
         self.capas = {
@@ -258,7 +258,7 @@ class Mapa:
         stats = {
             'dimensiones': f"{self.ancho}x{self.alto}",
             'tiles_totales': self.ancho * self.alto,
-            'tamaño_tile': self.tamaño_tile,
+            'tamaño_tile': self.tamano_tile,
             'spawn_points': len(self.spawn_points),
             'capas': len(self.capas)
         }
@@ -275,7 +275,7 @@ class Mapa:
     
     def clonar(self) -> 'Mapa':
         #copia mapa
-        nuevo_mapa = Mapa(self.ancho, self.alto, self.tamaño_tile)
+        nuevo_mapa = Mapa(self.ancho, self.alto, self.tamano_tile)
         nuevo_mapa.capas = copy.deepcopy(self.capas)
         nuevo_mapa.spawn_points = copy.deepcopy(self.spawn_points)
         nuevo_mapa.metadata = self.metadata.copy()
@@ -357,13 +357,15 @@ def crear_tile_desde_config(tipo: str) -> Tile:
     config = TILES_CONFIG[tipo]
 
     #se verififca si el sprite existe
+    # Verificar si el sprite existe
     sprite_path = config['sprite']
     if not os.path.exists(sprite_path):
         sprite_path = None
     
     return Tile(
-        tipo=tipo
+        tipo=tipo,
         color=config['color'],
         sprite=sprite_path,
         tiene_colision=config.get('colision', False)
     )
+    

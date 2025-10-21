@@ -1,1 +1,0 @@
-En esta carpeta se guardaran todos los mapas (mapa de ejemplo simple, mapa de ejemplo robusto) y otros mapas de pruebas si es necesario

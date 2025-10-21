@@ -1,6 +1,0 @@
-Se especificará:
-- Cómo usar el editor
-- Arquitectura y complejidad
-- Especificación del formato
-- Capturas de pantalla
-... y demás

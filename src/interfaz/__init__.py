@@ -1,1 +1,4 @@
-# Archivo vacío para indicar que esta carpeta es un paquete Python
+from .main_window import MainWindow
+from .map_canvas import MapView
+
+__all__ = ['MainWindow', 'MapView']

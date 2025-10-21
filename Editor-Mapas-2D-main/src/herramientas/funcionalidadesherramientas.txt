@@ -1,5 +1,0 @@
-- TODAS las herramientas descritas en el documento del lab (lápiz, relleno, borrador, selección, mover)
-- Sistemas de eventos del mouse
-- Herramienta de colisiones
-- Herramienta de spawn points
-- Preview mientras se dibuja

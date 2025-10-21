@@ -1,6 +1,0 @@
-Funcionalidades:
-- Ventana principal con PyQt5
-- Canvas con zoom y scroll
-- Cuadricula visual
-- Barra de menú completa
-- Diálogos (nuevo mapa, configuración)

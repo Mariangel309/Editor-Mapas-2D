@@ -1,183 +1,247 @@
-import pygame
-pygame.init()
+"""
+Sistema de herramientas del editor integrado con PyQt5 y el modelo.
+"""
 
-ANCHO, ALTO = 950, 600
-PANEL_W = 250
-COLOR_PANEL = (230, 210, 255)
-COLOR_FONDO = (255, 255, 255)
-COLOR_BOTON = (245, 235, 255)
-COLOR_HOVER = (210, 180, 255)
-COLOR_SELECCION = (180, 150, 255)
+from abc import ABC, abstractmethod
+from src.modelo import Mapa, Tile
 
-ventana = pygame.display.set_mode((ANCHO, ALTO))
-pygame.display.set_caption("Panel de Herramientas")
 
-FUENTE = pygame.font.SysFont("Sangria", 18, bold=True)
-TAM_CELDA = 24
-FILAS = ALTO // TAM_CELDA
-COLUMNAS = (ANCHO - PANEL_W) // TAM_CELDA
-mapa = [[COLOR_FONDO for _ in range(COLUMNAS)] for _ in range(FILAS)]
+class Herramienta(ABC):
+    """Clase base abstracta para todas las herramientas."""
+    
+    def __init__(self, nombre):
+        self.nombre = nombre
+    
+    @abstractmethod
+    def mouse_press(self, x, y, mapa, tile_seleccionado=None):
+        """Se llama cuando se presiona el mouse."""
+        pass
+    
+    @abstractmethod
+    def mouse_move(self, x, y, mapa, tile_seleccionado=None):
+        """Se llama cuando se mueve el mouse."""
+        pass
+    
+    @abstractmethod
+    def mouse_release(self, x, y, mapa, tile_seleccionado=None):
+        """Se llama cuando se suelta el mouse."""
+        pass
 
-herramientas = ["Lápiz", "Borrador", "Relleno", "Selección", "Colisión", "Spawn"]
-herramienta_actual = "Lápiz"
-dibujando = False
-borrando = False
-seleccionando = False
-bloque_seleccionado = None
-inicio_sel = None
-modo_pegar = False
 
-colores = [
-    (255, 100, 180), (255, 150, 80), (255, 220, 100),
-    (180, 255, 150), (100, 200, 255), (180, 150, 255),
-    (255, 255, 255), (0, 0, 0)
-]
-color_dibujo = colores[0]
+class HerramientaLapiz(Herramienta):
+    """Herramienta para dibujar tiles individuales."""
+    
+    def __init__(self):
+        super().__init__("Lápiz")
+        self.dibujando = False
+    
+    def mouse_press(self, x, y, mapa, tile_seleccionado=None):
+        self.dibujando = True
+        self._dibujar(x, y, mapa, tile_seleccionado)
+    
+    def mouse_move(self, x, y, mapa, tile_seleccionado=None):
+        if self.dibujando:
+            self._dibujar(x, y, mapa, tile_seleccionado)
+    
+    def mouse_release(self, x, y, mapa, tile_seleccionado=None):
+        self.dibujando = False
+    
+    def _dibujar(self, x, y, mapa, tile):
+        """Coloca el tile seleccionado en la posición."""
+        if not tile or not mapa:
+            return
+        
+        grid_x = x // mapa.tamano_tile
+        grid_y = y // mapa.tamano_tile
+        
+        try:
+            # Clonar el tile para que cada celda tenga su propia instancia
+            tile_nuevo = tile.clonar()
+            mapa.colocar_tile(grid_x, grid_y, tile_nuevo)
+        except ValueError:
+            pass  # Fuera del mapa
 
-COLOR_COLISION = (150, 150, 150)
-COLOR_SPAWN = (120, 255, 120)
 
-def flood_fill(mapa, fila, col, color_ant, color_nuevo):
-    if color_ant == color_nuevo or mapa[fila][col] != color_ant:
-        return
-    pila = [(fila, col)]
-    while pila:
-        f, c = pila.pop()
-        if 0 <= f < FILAS and 0 <= c < COLUMNAS and mapa[f][c] == color_ant:
-            mapa[f][c] = color_nuevo
-            pila += [(f+1, c), (f-1, c), (f, c+1), (f, c-1)]
+class HerramientaBorrador(Herramienta):
+    """Herramienta para borrar tiles."""
+    
+    def __init__(self):
+        super().__init__("Borrador")
+        self.borrando = False
+    
+    def mouse_press(self, x, y, mapa, tile_seleccionado=None):
+        self.borrando = True
+        self._borrar(x, y, mapa)
+    
+    def mouse_move(self, x, y, mapa, tile_seleccionado=None):
+        if self.borrando:
+            self._borrar(x, y, mapa)
+    
+    def mouse_release(self, x, y, mapa, tile_seleccionado=None):
+        self.borrando = False
+    
+    def _borrar(self, x, y, mapa):
+        """Borra el tile en la posición."""
+        if not mapa:
+            return
+        
+        grid_x = x // mapa.tamano_tile
+        grid_y = y // mapa.tamano_tile
+        
+        try:
+            mapa.colocar_tile(grid_x, grid_y, None)
+        except ValueError:
+            pass
 
-reloj = pygame.time.Clock()
-ejecutando = True
 
-while ejecutando:
-    ventana.fill(COLOR_FONDO)
-    pygame.draw.rect(ventana, COLOR_PANEL, (0, 0, PANEL_W, ALTO))
-    mx, my = pygame.mouse.get_pos()
+class HerramientaRelleno(Herramienta):
+    """Herramienta de flood fill (relleno)."""
+    
+    def __init__(self):
+        super().__init__("Relleno")
+    
+    def mouse_press(self, x, y, mapa, tile_seleccionado=None):
+        if not tile_seleccionado or not mapa:
+            return
+        
+        grid_x = x // mapa.tamano_tile
+        grid_y = y // mapa.tamano_tile
+        
+        if not mapa._validar_coordenadas(grid_x, grid_y):
+            return
+        
+        capa = mapa.capa_activa
+        tile_original = mapa.obtener_tile(grid_x, grid_y, capa)
+        
+        # No hacer nada si es el mismo tipo
+        if tile_original and tile_original.tipo == tile_seleccionado.tipo:
+            return
+        
+        # Flood fill
+        self._flood_fill(mapa, grid_x, grid_y, tile_original, tile_seleccionado, capa)
+    
+    def mouse_move(self, x, y, mapa, tile_seleccionado=None):
+        pass  # Relleno no se activa con movimiento
+    
+    def mouse_release(self, x, y, mapa, tile_seleccionado=None):
+        pass
+    
+    def _flood_fill(self, mapa, x, y, tile_original, tile_nuevo, capa):
+        """Algoritmo de flood fill iterativo."""
+        tipo_original = tile_original.tipo if tile_original else None
+        
+        pila = [(x, y)]
+        visitados = set()
+        
+        while pila:
+            cx, cy = pila.pop()
+            
+            if (cx, cy) in visitados:
+                continue
+            
+            if not mapa._validar_coordenadas(cx, cy):
+                continue
+            
+            tile_actual = mapa.obtener_tile(cx, cy, capa)
+            tipo_actual = tile_actual.tipo if tile_actual else None
+            
+            if tipo_actual != tipo_original:
+                continue
+            
+            # Colocar nuevo tile
+            tile_clon = tile_nuevo.clonar()
+            mapa.colocar_tile(cx, cy, tile_clon, capa)
+            visitados.add((cx, cy))
+            
+            # Agregar vecinos
+            pila.extend([
+                (cx + 1, cy),
+                (cx - 1, cy),
+                (cx, cy + 1),
+                (cx, cy - 1)
+            ])
 
-    for i, herramienta in enumerate(herramientas):
-        y = 30 + i * 60
-        boton = pygame.Rect(20, y, 200, 45)
-        color = COLOR_HOVER if boton.collidepoint((mx, my)) else COLOR_BOTON
-        pygame.draw.rect(ventana, color, boton, border_radius=10)
-        texto = FUENTE.render(herramienta, True, (80, 20, 120))
-        ventana.blit(texto, (50, y + 10))
-        if herramienta == herramienta_actual:
-            pygame.draw.rect(ventana, (150, 80, 255), boton, 3, border_radius=10)
 
-    ventana.blit(FUENTE.render("Colores:", True, (70, 30, 100)), (20, 400))
-    for i, color in enumerate(colores):
-        x = 20 + (i % 4) * 50
-        y = 430 + (i // 4) * 50
-        rect = pygame.Rect(x, y, 40, 40)
-        pygame.draw.rect(ventana, color, rect)
-        if rect.collidepoint((mx, my)):
-            pygame.draw.rect(ventana, (120, 80, 200), rect, 3)
-        if color == color_dibujo:
-            pygame.draw.rect(ventana, (0, 0, 0), rect, 3)
+class HerramientaColision(Herramienta):
+    """Herramienta para marcar colisiones."""
+    
+    def __init__(self):
+        super().__init__("Colisión")
+        self.pintando = False
+    
+    def mouse_press(self, x, y, mapa, tile_seleccionado=None):
+        self.pintando = True
+        self._marcar(x, y, mapa)
+    
+    def mouse_move(self, x, y, mapa, tile_seleccionado=None):
+        if self.pintando:
+            self._marcar(x, y, mapa)
+    
+    def mouse_release(self, x, y, mapa, tile_seleccionado=None):
+        self.pintando = False
+    
+    def _marcar(self, x, y, mapa):
+        """Marca colisión en la posición."""
+        if not mapa:
+            return
+        
+        grid_x = x // mapa.tamano_tile
+        grid_y = y // mapa.tamano_tile
+        
+        if mapa._validar_coordenadas(grid_x, grid_y):
+            mapa.capas['colision'][grid_y][grid_x] = True
 
-    for f in range(FILAS):
-        for c in range(COLUMNAS):
-            x = PANEL_W + c * TAM_CELDA
-            y = f * TAM_CELDA
-            pygame.draw.rect(ventana, mapa[f][c], (x, y, TAM_CELDA, TAM_CELDA))
-            pygame.draw.rect(ventana, (220, 220, 220), (x, y, TAM_CELDA, TAM_CELDA), 1)
+class HerramientaMover(Herramienta):
+    def __init__(self):
+        super().__init__("Mover")
+        self.origen = None
+        self.tile_copiado = None
 
-    for e in pygame.event.get():
-        if e.type == pygame.QUIT:
-            ejecutando = False
+    def mouse_press(self, x, y, mapa, tile_seleccionado=None):
+        grid_x = x
+        grid_y = y
 
-        elif e.type == pygame.MOUSEBUTTONDOWN:
-            x, y = e.pos
-            if x < PANEL_W:
-                for i, herramienta in enumerate(herramientas):
-                    boton = pygame.Rect(20, 30 + i * 60, 200, 45)
-                    if boton.collidepoint((x, y)):
-                        herramienta_actual = herramienta
-                        dibujando = borrando = seleccionando = modo_pegar = False
-                        bloque_seleccionado = None
+        if mapa._validar_coordenadas(grid_x, grid_y):
+            self.tile_copiado = mapa.obtener_tile(grid_x, grid_y, mapa.capa_activa)
+            self.origen = (grid_x, grid_y)
 
-                for i, color in enumerate(colores):
-                    cx = 20 + (i % 4) * 50
-                    cy = 430 + (i // 4) * 50
-                    rect = pygame.Rect(cx, cy, 40, 40)
-                    if rect.collidepoint((x, y)):
-                        color_dibujo = color
+    def mouse_release(self, x, y, mapa, tile_seleccionado=None):
+        if self.tile_copiado and self.origen:
+            grid_x = x
+            grid_y = y
 
-            else:
-                col = (x - PANEL_W) // TAM_CELDA
-                fila = y // TAM_CELDA
-                if not (0 <= fila < FILAS and 0 <= col < COLUMNAS):
-                    continue
+            if mapa._validar_coordenadas(grid_x, grid_y):
+                mapa.colocar_tile(self.origen[0], self.origen[1], None)
+                mapa.colocar_tile(grid_x, grid_y, self.tile_copiado)
 
-                if herramienta_actual == "Lápiz":
-                    dibujando = True
-                    mapa[fila][col] = color_dibujo
+        self.tile_copiado = None
+        self.origen = None
+class GestorHerramientas:
+    """Gestor que maneja todas las herramientas."""
+    
+    def __init__(self):
+        self.herramientas = {
+            'lapiz': HerramientaLapiz(),
+            'borrador': HerramientaBorrador(),
+            'relleno': HerramientaRelleno(),
+            'colision': HerramientaColision()
+        }
+        self.herramienta_actual = self.herramientas['lapiz']
+    
+    def cambiar_herramienta(self, nombre):
+        """Cambia la herramienta activa."""
+        if nombre in self.herramientas:
+            self.herramienta_actual = self.herramientas[nombre]
+            return True
+        return False
+    
+    def obtener_herramienta_actual(self):
+        """Retorna la herramienta actualmente activa."""
+        return self.herramienta_actual
 
-                elif herramienta_actual == "Borrador":
-                    borrando = True
-                    mapa[fila][col] = COLOR_FONDO
 
-                elif herramienta_actual == "Relleno":
-                    flood_fill(mapa, fila, col, mapa[fila][col], color_dibujo)
-
-                elif herramienta_actual == "Selección":
-                    if bloque_seleccionado is None and not modo_pegar:
-                        seleccionando = True
-                        inicio_sel = (fila, col)
-                    elif bloque_seleccionado is not None:
-                        for i, fila_sel in enumerate(bloque_seleccionado):
-                            for j, color in enumerate(fila_sel):
-                                if 0 <= fila+i < FILAS and 0 <= col+j < COLUMNAS:
-                                    mapa[fila+i][col+j] = color
-                        bloque_seleccionado = None
-                        modo_pegar = False
-
-                elif herramienta_actual == "Colisión":
-                    mapa[fila][col] = COLOR_COLISION
-
-                elif herramienta_actual == "Spawn":
-                    mapa[fila][col] = COLOR_SPAWN
-
-        elif e.type == pygame.MOUSEBUTTONUP:
-            dibujando = borrando = False
-            if seleccionando and inicio_sel:
-                x, y = e.pos
-                col = (x - PANEL_W) // TAM_CELDA
-                fila = y // TAM_CELDA
-                f1, f2 = sorted([inicio_sel[0], fila])
-                c1, c2 = sorted([inicio_sel[1], col])
-                bloque_seleccionado = [fila[c1:c2+1] for fila in mapa[f1:f2+1]]
-                seleccionando = False
-                inicio_sel = None
-                for f in range(f1, f2+1):
-                    for c in range(c1, c2+1):
-                        mapa[f][c] = COLOR_FONDO
-                modo_pegar = True
-
-        elif e.type == pygame.MOUSEMOTION:
-            x, y = e.pos
-            col = (x - PANEL_W) // TAM_CELDA
-            fila = y // TAM_CELDA
-            if 0 <= fila < FILAS and 0 <= col < COLUMNAS:
-                if dibujando:
-                    mapa[fila][col] = color_dibujo
-                elif borrando:
-                    mapa[fila][col] = COLOR_FONDO
-
-    if bloque_seleccionado and modo_pegar:
-        mx, my = pygame.mouse.get_pos()
-        f = my // TAM_CELDA
-        c = (mx - PANEL_W) // TAM_CELDA
-        for i, fila_sel in enumerate(bloque_seleccionado):
-            for j, color in enumerate(fila_sel):
-                if 0 <= f+i < FILAS and 0 <= c+j < COLUMNAS:
-                    x = PANEL_W + (c+j) * TAM_CELDA
-                    y = (f+i) * TAM_CELDA
-                    pygame.draw.rect(ventana, color, (x, y, TAM_CELDA, TAM_CELDA))
-                    pygame.draw.rect(ventana, COLOR_SELECCION, (x, y, TAM_CELDA, TAM_CELDA), 1)
-
-    pygame.display.flip()
-    reloj.tick(60)
-
-pygame.quit()
+# TEST
+if __name__ == '__main__':
+    print("✅ Módulo de herramientas cargado correctamente")
+    gestor = GestorHerramientas()
+    print(f"Herramientas disponibles: {list(gestor.herramientas.keys())}")

@@ -1,6 +1,0 @@
-Funcionalidades:
-- Crear la clase "Mapa" completa con todas las capas
-- Crear la clase "Tile" con propiedades avanzadas descritas en el lab
-- Crear la clase "Objeto" (árboles, casas, NPCs)
-- Sistema de coordenadas y validaciones
-- Gestión de spawn points
