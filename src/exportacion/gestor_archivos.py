@@ -3,15 +3,14 @@ import os
 from datetime import datetime
 from PIL import Image, ImageDraw
 
-from modelo.mapa import Mapa, Tile  # ← CORREGIDO: sin "src."
-from modelo.objetos import Objeto     # ← CORREGIDO: sin "src."
+from modelo.mapa import Mapa, Tile
+from modelo.objetos import Objeto
 
 
 VERSION_FORMATO = "1.0"
 
 
 class GestorArchivos:
-    """Maneja guardado, carga y exportación de mapas."""
     
     def __init__(self):
         self.ruta_maps = "maps/"
@@ -19,12 +18,10 @@ class GestorArchivos:
         self._crear_directorios()
     
     def _crear_directorios(self):
-        """Crea las carpetas necesarias."""
         os.makedirs(self.ruta_maps, exist_ok=True)
         os.makedirs(self.ruta_exports, exist_ok=True)
     
     def guardar_mapa(self, mapa, nombre_archivo):
-        """Guarda el mapa en formato JSON."""
         try:
             datos = {
                 'version': VERSION_FORMATO,
@@ -39,11 +36,11 @@ class GestorArchivos:
                 'spawn_points': mapa.spawn_points
             }
             
-            # Serializar capas
             for nombre_capa, matriz in mapa.capas.items():
                 if nombre_capa == 'colision':
                     datos['capas'][nombre_capa] = matriz
                 else:
+                    # Serializar tiles
                     capa_serializada = []
                     for fila in matriz:
                         fila_data = []
@@ -66,8 +63,11 @@ class GestorArchivos:
             return False, f"❌ Error al guardar: {str(e)}"
     
     def cargar_mapa(self, nombre_archivo):
-        """Carga un mapa desde JSON."""
         try:
+            # Quitar extensión si la tiene
+            if nombre_archivo.endswith('.json'):
+                nombre_archivo = nombre_archivo[:-5]
+            
             ruta_completa = os.path.join(self.ruta_maps, f"{nombre_archivo}.json")
             
             if not os.path.exists(ruta_completa):
@@ -105,7 +105,6 @@ class GestorArchivos:
             return False, None, f"❌ Error: {str(e)}"
     
     def _validar_estructura(self, datos):
-        """Valida que el JSON tenga la estructura correcta."""
         if 'version' not in datos:
             return False
         if 'metadata' not in datos:
@@ -120,7 +119,6 @@ class GestorArchivos:
         return True
     
     def exportar_para_motor(self, mapa, nombre_archivo):
-        """Exporta en formato optimizado para el motor del juego."""
         try:
             export_data = {
                 'width': mapa.ancho,
@@ -128,13 +126,14 @@ class GestorArchivos:
                 'tileSize': mapa.tamano_tile,
                 'layers': {
                     'background': self._comprimir_capa(mapa.capas['fondo']),
+                    'objects': self._comprimir_capa(mapa.capas['objetos']),
                     'collision': self._comprimir_colisiones(mapa.capas['colision'])
                 },
                 'spawns': mapa.spawn_points
             }
             
             ruta = os.path.join(self.ruta_exports, f"{nombre_archivo}_game.json")
-            with open(ruta, 'w') as f:
+            with open(ruta, 'w', encoding='utf-8') as f:
                 json.dump(export_data, f, separators=(',', ':'))
             
             return True, f"✅ Exportado a {ruta}"
@@ -143,11 +142,9 @@ class GestorArchivos:
             return False, f"❌ Error: {str(e)}"
     
     def _comprimir_capa(self, matriz):
-        """Comprime la matriz usando tipos de tiles."""
         return [[tile.tipo if tile else None for tile in fila] for fila in matriz]
     
     def _comprimir_colisiones(self, matriz):
-        """Lista de coordenadas con colisión."""
         colisiones = []
         for y, fila in enumerate(matriz):
             for x, tiene_colision in enumerate(fila):
@@ -156,7 +153,7 @@ class GestorArchivos:
         return colisiones
     
     def exportar_png(self, mapa, nombre_archivo):
-        """BONO: Exporta el mapa como imagen PNG."""
+        #BONO, Exportar el mapa como imagen PNG
         try:
             ancho_img = mapa.ancho * mapa.tamano_tile
             alto_img = mapa.alto * mapa.tamano_tile
@@ -164,7 +161,6 @@ class GestorArchivos:
             img = Image.new('RGB', (ancho_img, alto_img), color='white')
             draw = ImageDraw.Draw(img)
             
-            # Dibujar cada capa
             for nombre_capa in ['fondo', 'objetos']:
                 for y in range(mapa.alto):
                     for x in range(mapa.ancho):
@@ -175,13 +171,22 @@ class GestorArchivos:
                             x2 = x1 + mapa.tamano_tile
                             y2 = y1 + mapa.tamano_tile
                             
-                            # Convertir color hex a RGB
                             color = tile.color.lstrip('#')
                             rgb = tuple(int(color[i:i+2], 16) for i in (0, 2, 4))
                             
                             draw.rectangle([x1, y1, x2, y2], fill=rgb)
             
-            # Cuadrícula
+            for y in range(mapa.alto):
+                for x in range(mapa.ancho):
+                    if mapa.capas['colision'][y][x]:
+                        x1 = x * mapa.tamano_tile
+                        y1 = y * mapa.tamano_tile
+                        x2 = x1 + mapa.tamano_tile
+                        y2 = y1 + mapa.tamano_tile
+
+                        draw.line([x1, y1, x2, y2], fill=(255, 0, 0), width=2)
+                        draw.line([x2, y1, x1, y2], fill=(255, 0, 0), width=2)
+            
             for x in range(0, ancho_img, mapa.tamano_tile):
                 draw.line([(x, 0), (x, alto_img)], fill=(200, 200, 200), width=1)
             for y in range(0, alto_img, mapa.tamano_tile):
@@ -196,9 +201,7 @@ class GestorArchivos:
             return False, f"❌ Error: {str(e)}"
 
 
-# Funciones de conveniencia para mantener compatibilidad
 def guardar_mapa_json(datos_mapa, ruta_archivo):
-    """Función compatible con el código anterior del compañero."""
     try:
         os.makedirs(os.path.dirname(ruta_archivo) if os.path.dirname(ruta_archivo) else ".", exist_ok=True)
         with open(ruta_archivo, 'w', encoding='utf-8') as f:
@@ -211,7 +214,6 @@ def guardar_mapa_json(datos_mapa, ruta_archivo):
 
 
 def cargar_mapa_json(ruta_archivo):
-    """Función compatible con el código anterior del compañero."""
     try:
         with open(ruta_archivo, 'r', encoding='utf-8') as f:
             datos = json.load(f)
@@ -229,7 +231,6 @@ def cargar_mapa_json(ruta_archivo):
 
 
 def exportar_para_motor(datos_mapa, ruta_exportacion):
-    """Función compatible con el código anterior del compañero."""
     try:
         os.makedirs(os.path.dirname(ruta_exportacion) if os.path.dirname(ruta_exportacion) else ".", exist_ok=True)
         

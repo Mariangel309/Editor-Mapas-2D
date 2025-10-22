@@ -3,7 +3,7 @@ import os
 from typing import Optional, Dict, List, Tuple, Any
 
 class Tile:
-    #Esta clase represnyta un tile individual del mapa, el tile o puede ser imagen es decir sprite o un color solido
+    
     def __init__(
             self,
             tipo: str,
@@ -18,7 +18,6 @@ class Tile:
         self.tiene_colision = tiene_colision
         self.animado = animado
 
-        #animaciones peroo todavia nooo
         self.frames = []
         self.frame_actual = 0
         self.tiempo_por_frame = 200
@@ -48,32 +47,26 @@ class Tile:
         return colores.get(self.tipo, '#FFFFFF')
     
     def tiene_sprite(self) -> bool:
-        #aqui se verifica si el tile tiene algun sprite valido y devuelve verdadero si es lo tiene y el archivo existe
         return self.sprite is not None and os.path.exists(self.sprite)
     
     def obtener_sprite_path(self) -> Optional[str]:
-        #busca la ruta del sprite si es q existe
         if self.tiene_sprite():
             return self.sprite
         return None
     
     def establecer_sprite(self, ruta: str) -> bool:
-        #establece el sprite del tile
         if os.path.exists(ruta):
             self.sprite = ruta
             return True
         return False
     
     def establecer_propiedad(self, clave: str, valor: Any) -> None:
-        #estabalce una propiedad personalizada
         self.propiedades[clave] = valor
 
     def obtener_propiedad(self, clave: str, default: Any = None) -> Any:
-        #obtiene una propiedad personalizada
         return self.propiedades.get(clave, default)
     
     def to_dict(self) -> Dict[str, Any]:
-        #serializa el tile a un dicc y devuelve el dicc con los datos del tile
         return {
             'tipo': self.tipo,
             'color': self.color,
@@ -83,9 +76,9 @@ class Tile:
             'frames': self.frames,
             'propiedades': self.propiedades
         }
+    
     @classmethod
     def from_dict(cls, datos: Dict[str, Any]) -> 'Tile':
-        #la opcion  fue crear un tile desde un diccionario
         tile = cls(
             tipo=datos['tipo'],
             color=datos.get('color'),
@@ -98,14 +91,6 @@ class Tile:
         return tile
     
     def clonar(self) -> 'Tile':
-        #crea una copia del tile
-        tile_nuevo = Tile(
-            tipo=self.tipo,
-            color=self.color,
-            sprite=self.sprite,
-            tiene_colision=self.tiene_colision,
-            animado=self.animado
-        )
         tile_nuevo = Tile(
             tipo=self.tipo,
             color=self.color,
@@ -133,9 +118,8 @@ class Tile:
     
 
 class Mapa:
-    #Representa el mapa completo del editor, aqui voy a a hacer uso de una matriz bidimensional ya q como el mapa esta coompuesto por multiples capas, cada una se implementa como una matriz
+    
     def __init__(self, ancho: int, alto: int, tamano_tile: int = 32):
-        #inicializar un nuevo mapa
         if ancho <= 0 or alto <= 0:
             raise ValueError(f"Dimensiones inválidas: {ancho}x{alto}")
         if tamano_tile <= 0:
@@ -145,7 +129,7 @@ class Mapa:
         self.alto = alto
         self.tamano_tile = tamano_tile
 
-        #creacion de capas del mapa
+        # Creación de capas del mapa
         self.capas = {
             'fondo': [[None for _ in range(ancho)] for _ in range(alto)],
             'decoracion': [[None for _ in range(ancho)] for _ in range(alto)],
@@ -156,7 +140,7 @@ class Mapa:
         self.capa_activa = 'fondo'
         self.spawn_points = []
         
-        #metadata del mapa
+        # Metadata del mapa
         self.metadata = {
             'nombre': 'Sin nombre',
             'autor': '',
@@ -172,7 +156,6 @@ class Mapa:
             tile: Optional[Tile],
             capa: Optional[str] = None
     ) -> None:
-        #coloca el tile en la posicion q se quiera
         if not self._validar_coordenadas(x, y):
             raise ValueError(f"Coordenadas fuera del mapa: ({x}, {y})")
         
@@ -187,7 +170,6 @@ class Mapa:
             self.capas[capa][y][x] = tile
     
     def obtener_tile(self, x: int, y: int, capa: str) -> Optional[Tile]:
-        #obtiene el tile en la pos especificada
         if not self._validar_coordenadas(x, y):
             return None
         
@@ -197,8 +179,7 @@ class Mapa:
         return self.capas[capa][y][x]
     
     def _validar_coordenadas(self, x: int, y: int) -> bool:
-        #verificacion si las coordenadas estan dentro del mapa
-        return 0 <= x <= self.ancho and 0 <= y <= self.alto
+        return 0 <= x < self.ancho and 0 <= y < self.alto
     
     def agregar_spawn_point(
         self, 
@@ -221,7 +202,6 @@ class Mapa:
         return True
 
     def eliminar_spawn_point(self, x: int, y: int) -> bool:
-        #elimina spawn point de acuerdo a las coordenadas dadas
         inicial = len(self.spawn_points) 
         self.spawn_points = [
             sp for sp in self.spawn_points
@@ -230,7 +210,6 @@ class Mapa:
         return len(self.spawn_points) < inicial
     
     def limpiar_capa(self, nombre_capa: str) -> bool:
-        #limpia toda una capa completa
         if nombre_capa not in self.capas:
             return False
         
@@ -247,23 +226,21 @@ class Mapa:
         return True
     
     def cambiar_capa_activa(self, nombre_capa: str) -> bool:
-        #aca se cambia la capa activa del mapa
         if nombre_capa not in self.capas:
             return False
         self.capa_activa = nombre_capa
         return True
     
     def obtener_estadisticas(self) -> Dict[str, Any]:
-        #adicional .
         stats = {
             'dimensiones': f"{self.ancho}x{self.alto}",
             'tiles_totales': self.ancho * self.alto,
-            'tamaño_tile': self.tamano_tile,
+            'tamano_tile': self.tamano_tile,
             'spawn_points': len(self.spawn_points),
             'capas': len(self.capas)
         }
 
-        #conteo de tiles por capa
+        # Conteo de tiles por capa
         for nombre_capa, matriz in self.capas.items():
             if nombre_capa == 'colision':
                 count = sum(1 for fila in matriz for col in fila if col)
@@ -274,7 +251,7 @@ class Mapa:
         return stats
     
     def clonar(self) -> 'Mapa':
-        #copia mapa
+        """Crea una copia del mapa."""
         nuevo_mapa = Mapa(self.ancho, self.alto, self.tamano_tile)
         nuevo_mapa.capas = copy.deepcopy(self.capas)
         nuevo_mapa.spawn_points = copy.deepcopy(self.spawn_points)
@@ -287,8 +264,9 @@ class Mapa:
     
     def __str__(self) -> str:
         return f"Mapa '{self.metadata['nombre']}': {self.ancho}x{self.alto}"
-    
-#CONFIGURACION DE TILES
+
+
+# CONFIGURACIÓN DE TILES PREDEFINIDOS
 
 TILES_CONFIG = {
     'pasto': {
@@ -310,7 +288,7 @@ TILES_CONFIG = {
         'sprite': 'assets/tiles/water.png',
         'color': '#1E90FF',
         'colision': True,
-        'descripcion': 'Agua azul (bloq uea paso)'
+        'descripcion': 'Agua azul (bloquea paso)'
     },
     'piedra': {
         'nombre': 'Piedra',
@@ -349,15 +327,13 @@ TILES_CONFIG = {
     },
 }
 
+
 def crear_tile_desde_config(tipo: str) -> Tile:
-    #crear un tile desde la config predefinida
     if tipo not in TILES_CONFIG:
         return Tile(tipo)
     
     config = TILES_CONFIG[tipo]
 
-    #se verififca si el sprite existe
-    # Verificar si el sprite existe
     sprite_path = config['sprite']
     if not os.path.exists(sprite_path):
         sprite_path = None
@@ -368,4 +344,3 @@ def crear_tile_desde_config(tipo: str) -> Tile:
         sprite=sprite_path,
         tiene_colision=config.get('colision', False)
     )
-    

@@ -1,6 +1,3 @@
-"""
-Canvas del mapa con undo/redo integrado.
-"""
 
 from PyQt5.QtWidgets import QGraphicsView, QGraphicsScene, QGraphicsPixmapItem, QWidget
 from PyQt5.QtCore import Qt, QPoint, QRect
@@ -12,7 +9,7 @@ from sistema.undo_redo import GestorUndoRedo, Accion
 
 
 class MapView(QGraphicsView):
-    """Vista del canvas con undo/redo integrado."""
+    #Vista del canvas con undo/redo integrado
     
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -20,7 +17,7 @@ class MapView(QGraphicsView):
         self.setScene(self._scene)
 
         self.setRenderHints(QPainter.Antialiasing | QPainter.SmoothPixmapTransform)
-        self.setDragMode(QGraphicsView.ScrollHandDrag)
+        self.setDragMode(QGraphicsView.NoDrag)  
 
         # Zoom
         self._zoom = 0
@@ -34,11 +31,14 @@ class MapView(QGraphicsView):
         self.herramienta_activa = 'lapiz'
         self.dibujando = False
         
+        # Cuadrícula
+        self.mostrar_cuadricula = True
+        self.grosor_cuadricula = 1
+        
         # UNDO/REDO
         self.gestor_undo_redo = GestorUndoRedo()
 
     def create_new_map(self, width_tiles, height_tiles, tile_size):
-        """Crea un nuevo mapa."""
         self.mapa = Mapa(width_tiles, height_tiles, tile_size)
         
         w = width_tiles * tile_size
@@ -46,19 +46,17 @@ class MapView(QGraphicsView):
         self._scene.clear()
         self._scene.setSceneRect(0, 0, w, h)
         
-        # Limpiar historial de undo/redo
         self.gestor_undo_redo.limpiar()
         
         self.dibujar_mapa()
     
     def dibujar_mapa(self):
-        """Dibuja el mapa completo."""
+        #Dibuja el mapa completo.
         if not self.mapa:
             return
         
         self._scene.clear()
         
-        # Dibujar capas
         for nombre_capa in ['fondo', 'objetos']:
             for y in range(self.mapa.alto):
                 for x in range(self.mapa.ancho):
@@ -85,10 +83,27 @@ class MapView(QGraphicsView):
                             QBrush(color)
                         )
         
-        self._dibujar_cuadricula()
+        # Dibujar capa de colisión (con transparencia)
+        for y in range(self.mapa.alto):
+            for x in range(self.mapa.ancho):
+                if self.mapa.capas['colision'][y][x]:
+                    px = x * self.mapa.tamano_tile
+                    py = y * self.mapa.tamano_tile
+                    size = self.mapa.tamano_tile
+                    
+                    # Color rojo semi-transparente para colisiones
+                    color = QColor(255, 0, 0, 100)
+                    self._scene.addRect(
+                        px, py, size, size,
+                        QPen(QColor(255, 0, 0)),
+                        QBrush(color)
+                    )
+        
+        # Dibujar cuadrícula
+        if self.mostrar_cuadricula:
+            self._dibujar_cuadricula()
     
     def _dibujar_cuadricula(self):
-        """Dibuja la cuadrícula."""
         if not self.mapa:
             return
         
@@ -96,8 +111,9 @@ class MapView(QGraphicsView):
         h = self.mapa.alto * self.mapa.tamano_tile
         size = self.mapa.tamano_tile
         
-        pen = QPen(QColor(200, 200, 200, 100))
-        pen.setWidth(1)
+        # Cuadrícula más sutil
+        pen = QPen(QColor(180, 180, 180, 80))
+        pen.setWidth(self.grosor_cuadricula)
         
         for x in range(0, w + 1, size):
             self._scene.addLine(x, 0, x, h, pen)
@@ -111,7 +127,6 @@ class MapView(QGraphicsView):
     def establecer_herramienta(self, herramienta):
         self.herramienta_activa = herramienta
     
-    # ==================== MOUSE CON UNDO/REDO ====================
     
     def mousePressEvent(self, event):
         if event.button() == Qt.LeftButton and self.mapa:
@@ -128,7 +143,7 @@ class MapView(QGraphicsView):
             super().mousePressEvent(event)
     
     def mouseMoveEvent(self, event):
-        if self.dibujando and self.mapa:
+        if self.dibujando and self.mapa and self.herramienta_activa in ['lapiz', 'borrador', 'colision']:
             scene_pos = self.mapToScene(event.pos())
             x = int(scene_pos.x())
             y = int(scene_pos.y())
@@ -160,7 +175,7 @@ class MapView(QGraphicsView):
                     
                     # Colocar tile
                     tile_nuevo = self.tile_seleccionado.clonar()
-                    self.mapa.colocar_tile(grid_x, grid_y, tile_nuevo)
+                    self.mapa.colocar_tile(grid_x, grid_y, tile_nuevo, capa)
                     
                     # REGISTRAR PARA UNDO
                     accion = Accion('colocar_tile', (grid_x, grid_y, capa, tile_anterior))
@@ -169,29 +184,95 @@ class MapView(QGraphicsView):
                     self.dibujar_mapa()
             
             elif self.herramienta_activa == 'borrador':
-                # GUARDAR ESTADO ANTERIOR
                 tile_anterior = self.mapa.obtener_tile(grid_x, grid_y, capa)
                 
-                # Borrar
-                self.mapa.colocar_tile(grid_x, grid_y, None)
+                self.mapa.colocar_tile(grid_x, grid_y, None, capa)
                 
-                # REGISTRAR PARA UNDO
                 accion = Accion('colocar_tile', (grid_x, grid_y, capa, tile_anterior))
                 self.gestor_undo_redo.registrar_accion(accion)
                 
                 self.dibujar_mapa()
+            
+            elif self.herramienta_activa == 'relleno':
+                if self.tile_seleccionado:
+                    self._flood_fill(grid_x, grid_y)
+            
+            elif self.herramienta_activa == 'colision':
+                estado_anterior = self.mapa.capas['colision'][grid_y][grid_x]
+                self.mapa.capas['colision'][grid_y][grid_x] = not estado_anterior
+                
+                accion = Accion('toggle_colision', (grid_x, grid_y, estado_anterior))
+                self.gestor_undo_redo.registrar_accion(accion)
+                
+                self.dibujar_mapa()
         
-        except ValueError:
+        except (ValueError, IndexError):
             pass
     
-    # ==================== ZOOM ====================
+    def _flood_fill(self, start_x, start_y):
+        """Algoritmo de relleno (flood fill)."""
+        if not self.tile_seleccionado or not self.mapa:
+            return
+        
+        capa = self.mapa.capa_activa
+        
+        tile_original = self.mapa.obtener_tile(start_x, start_y, capa)
+        tipo_original = tile_original.tipo if tile_original else None
+        
+        if tile_original and tile_original.tipo == self.tile_seleccionado.tipo:
+            return
+        
+        pila = [(start_x, start_y)]
+        visitados = set()
+        tiles_modificados = []
+        
+        while pila:
+            x, y = pila.pop()
+            
+            if (x, y) in visitados:
+                continue
+            
+            if not self.mapa._validar_coordenadas(x, y):
+                continue
+            
+            tile_actual = self.mapa.obtener_tile(x, y, capa)
+            tipo_actual = tile_actual.tipo if tile_actual else None
+            
+            if tipo_actual != tipo_original:
+                continue
+            
+            visitados.add((x, y))
+            
+            # Guardar estado anterior
+            tiles_modificados.append((x, y, tile_actual))
+            
+            # Colocar nuevo tile
+            tile_nuevo = self.tile_seleccionado.clonar()
+            self.mapa.colocar_tile(x, y, tile_nuevo, capa)
+            
+            pila.extend([
+                (x + 1, y),
+                (x - 1, y),
+                (x, y + 1),
+                (x, y - 1)
+            ])
+        
+        if tiles_modificados:
+            accion = Accion('flood_fill', tiles_modificados)
+            self.gestor_undo_redo.registrar_accion(accion)
+        
+        self.dibujar_mapa()
+    
     
     def wheelEvent(self, event):
-        delta = event.angleDelta().y()
-        if delta > 0:
-            self.zoom_in()
+        if event.modifiers() & Qt.ControlModifier:
+            delta = event.angleDelta().y()
+            if delta > 0:
+                self.zoom_in()
+            else:
+                self.zoom_out()
         else:
-            self.zoom_out()
+            super().wheelEvent(event)
 
     def zoom_in(self):
         if self._zoom < self._max_zoom:
