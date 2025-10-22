@@ -194,8 +194,11 @@ class MapView(QGraphicsView):
                 self.dibujar_mapa()
             
             elif self.herramienta_activa == 'relleno':
+                if self.mapa.capa_activa == 'colision':
+                    return
                 if self.tile_seleccionado:
                     self._flood_fill(grid_x, grid_y)
+
             
             elif self.herramienta_activa == 'colision':
                 estado_anterior = self.mapa.capas['colision'][grid_y][grid_x]
@@ -213,6 +216,10 @@ class MapView(QGraphicsView):
         """Algoritmo de relleno (flood fill)."""
         if not self.tile_seleccionado or not self.mapa:
             return
+        # Evitar flood fill si la capa es de colisión o no guarda Tiles
+        if self.mapa.capa_activa == 'colision':
+            return
+
         
         capa = self.mapa.capa_activa
         

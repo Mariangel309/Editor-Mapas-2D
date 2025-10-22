@@ -1,6 +1,8 @@
 import copy
 import os
 from typing import Optional, Dict, List, Tuple, Any
+from sistema.undo_redo import GestorUndoRedo, Accion
+from copy import deepcopy
 
 class Tile:
     
@@ -138,7 +140,7 @@ class Mapa:
         }
 
         self.capa_activa = 'fondo'
-        self.spawn_points = []
+        self.undo_redo = GestorUndoRedo()
         
         # Metadata del mapa
         self.metadata = {
@@ -160,6 +162,14 @@ class Mapa:
             raise ValueError(f"Coordenadas fuera del mapa: ({x}, {y})")
         
         capa = capa or self.capa_activa
+
+        capa = self.capa_activa
+        tile_anterior = deepcopy(self.capas[capa][y][x])
+        self.capas[capa][y][x] = deepcopy(tile)
+
+            # Registrar acción para deshacer
+        accion = Accion('colocar_tile', (x, y, capa, tile_anterior))
+        self.undo_redo.registrar_accion(accion)
         
         if capa not in self.capas:
             raise ValueError(f"Capa inválida: {capa}")

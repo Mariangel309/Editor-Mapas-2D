@@ -1,6 +1,6 @@
-"""
-Sistema de Undo/Redo para el editor.
-"""
+
+#Sistema de Undo/Redo para el editor.
+
 from copy import deepcopy
 
 
